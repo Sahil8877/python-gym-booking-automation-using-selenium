@@ -1,8 +1,8 @@
 # 🚀 Gym Booking Automation System
 
-A Selenium-based end-to-end automation project that simulates a structured gym booking workflow with validation, retry mechanisms, and dynamic UI handling on the [App Brewery gym demo app](https://appbrewery.github.io/gym/).
+A Selenium based end-to-end automation project that simulates a structured gym booking workflow with validation, retry mechanisms, and dynamic UI handling on the [App Brewery gym demo app](https://appbrewery.github.io/gym/).
 
-The project demonstrates browser automation, state-based decision logic, and resilient workflow execution using Python and Selenium.
+The project demonstrates browser automation, state based decision logic, and resilient workflow execution using Python and Selenium.
 
 ---
 
@@ -20,8 +20,8 @@ The project demonstrates browser automation, state-based decision logic, and res
 
 ## 📌 Key Features
 
-- 🔐 **Automated login** with credential input, form submission, and URL-based success validation
-- 📅 **Day-grouped schedule parsing** — targets `div[id^='day-group-']` elements, filtered by `tue` / `thu`
+- 🔐 **Automated login** with credential input, form submission, and URL based success validation
+- 📅 **Day grouped schedule parsing** — targets `div[id^='day-group-']` elements, filtered by `tue` / `thu`
 - 🎯 **6:00 PM class filtering** across both target days
 - 🟢 **Smart booking engine** — handles `Book Class`, `Join Waitlist`, `Booked`, and `Waitlisted` button states
 - ⏳ **`aria-busy` polling** — waits for button state to resolve before proceeding
