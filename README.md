@@ -1,157 +1,152 @@
 # 🚀 Gym Booking Automation System
 
-A Python-based **end-to-end browser automation system** built with Selenium to automate gym class discovery, booking, and verification workflows on a live web application.
+A Selenium-based end-to-end automation project that simulates a structured gym booking workflow with validation, retry mechanisms, and dynamic UI handling on the [App Brewery gym demo app](https://appbrewery.github.io/gym/).
 
-This project simulates real-world **workflow automation, system interaction, and transactional validation**, similar to production support automation tools used in enterprise environments.
+The project demonstrates browser automation, state-based decision logic, and resilient workflow execution using Python and Selenium.
+
+---
+
+## ⚡ At a Glance
+
+| | |
+|---|---|
+| 🔧 | Automates full gym booking flow: login → schedule → booking → verification |
+| 🧠 | Parses dynamic DOM to extract class schedules grouped by day |
+| 🎯 | Filters and books all Tuesday & Thursday 6:00 PM sessions |
+| 🔁 | Wraps key actions in a retry loop (up to 7 attempts) |
+| ✅ | Cross-validates bookings on the My Bookings confirmation page |
 
 ---
 
 ## 📌 Key Features
 
-- 🔐 Automated login handling with retry logic and session persistence
-- 📅 Dynamic parsing of gym schedules across multiple days
-- 🎯 Intelligent filtering of classes based on time (e.g. 6:00 PM sessions)
-- 🟢 Automated booking and waitlist handling based on real-time UI state
-- 🔁 Robust retry mechanism for unstable UI interactions
-- ⚠️ Exception handling for stale elements and missing DOM nodes
-- ✅ Post-action verification via booking confirmation page
-- 📊 Booking consistency validation between source and target pages
+- 🔐 **Automated login** with credential input, form submission, and URL-based success validation
+- 📅 **Day-grouped schedule parsing** — targets `div[id^='day-group-']` elements, filtered by `tue` / `thu`
+- 🎯 **6:00 PM class filtering** across both target days
+- 🟢 **Smart booking engine** — handles `Book Class`, `Join Waitlist`, `Booked`, and `Waitlisted` button states
+- ⏳ **`aria-busy` polling** — waits for button state to resolve before proceeding
+- 🔁 **Generic `retry()` wrapper** — retries any callable up to N times on falsy return
+- ⚠️ **Exception handling** for `StaleElementReferenceException` and `NoSuchElementException`
+- ✅ **Post-booking verification** — compares expected vs. actual count across confirmed and waitlisted bookings
+- 🧩 **Persistent Chrome profile** — uses a local `gym_profile/` directory to preserve session state
 
 ---
 
-## 🧠 System Architecture
+## 🧠 Workflow Pipeline
 
-Gym Landing Page  
-        ↓  
-Login Automation Layer  
-        ↓  
-Schedule Scraping Engine  
-        ↓  
-Class Filtering Logic (Time-based rules)  
-        ↓  
-Booking Engine (Book / Waitlist / Skip)  
-        ↓  
-Verification Layer (My Bookings Page)  
-
-This project follows a **multi-stage workflow pipeline**, similar to event-driven automation systems used in production environments.
+```
+https://appbrewery.github.io/gym/
+        ↓
+Click "Join Today" → redirect to /login/
+        ↓
+Login Automation  (retry up to 7x, validates redirect to /schedule/)
+        ↓
+Schedule DOM Parsing  (day-groups filtered by 'tue' / 'thu')
+        ↓
+Class Filtering  (time == '6:00 PM')
+        ↓
+Booking Engine  (Book / Join Waitlist / Skip if already handled)
+        ↓  aria-busy polling after each click
+Verification  (/my-bookings/ — confirmed + waitlisted count vs. expected)
+```
 
 ---
 
 ## ⚙️ Tech Stack
 
-- Python 3.x
-- Selenium WebDriver
-- ChromeDriver
-- WebDriverWait (Explicit waits)
-- HTML DOM parsing
-- Exception handling & retry logic
+| Tool | Purpose |
+|---|---|
+| Python 3.x | Core scripting language |
+| Selenium WebDriver | Browser automation |
+| ChromeDriver | Chrome browser interface |
+| `WebDriverWait` + `EC` | Explicit wait strategies |
+| `StaleElementReferenceException` handling | DOM re-query on element loss |
+| Persistent Chrome profile | Session and cookie persistence across runs |
 
 ---
 
-## 🧩 Core Functional Modules
+## 🧩 Code Structure
 
-### 1. Authentication Automation
-Handles login workflow with retry support for unstable UI interactions.
+This project is implemented as a **single script** (`main.py`) organised into focused functions:
 
-- Input automation for credentials
-- Form submission handling
-- URL validation after authentication
+```
+main.py
+├── Chrome setup          # Options, detach mode, persistent profile, driver init
+├── retry(func, descr)    # Generic retry wrapper — retries any callable up to N times
+├── login()               # Credential input, form submit, URL validation
+├── Schedule parsing      # DOM traversal: day-groups → class metadata → `classes[]`
+├── book_class()          # Booking logic with aria-busy polling and state handling
+└── verify_booking()      # Navigates to /my-bookings/, counts and cross-validates
+```
 
----
-
-### 2. Schedule Extraction Engine
-Parses dynamic DOM structure to extract:
-
-- Class names
-- Time slots
-- Availability status
-- Booking button state
-- Day/date grouping
+> All booking state is tracked in the `classes[]` list and the `total_6pm_classes` counter, which is passed implicitly into `verify_booking()`.
 
 ---
 
-### 3. Booking Decision Engine
+## 🔁 Retry Logic
 
-Implements rule-based automation logic:
+```python
+def retry(func, descr, retries=7):
+    for attempt in range(1, retries + 1):
+        if func():
+            return True
+        print(descr + f" Attempt : {attempt}")
+    print("⚠️ Re-attempt failed while : ", descr)
+    return False
+```
 
-- Book class if available
-- Join waitlist if required
-- Skip if already booked/waitlisted
-- Handles real-time UI state changes (`aria-busy` detection)
-
----
-
-### 4. Resilient Automation Layer
-
-- Retry wrapper for failed actions
-- Handles:
-  - `StaleElementReferenceException`
-  - `NoSuchElementException`
-- Ensures workflow continuity under UI instability
+Any function that returns `True` on success and `False` on failure can be passed into `retry()`. Used for both `login()` and `book_class()`.
 
 ---
 
-### 5. Verification & Validation Layer
+## 🎯 Booking Decision Logic
 
-- Navigates to “My Bookings” page
-- Extracts confirmed and waitlisted sessions
-- Validates expected vs actual bookings
-- Logs discrepancies for debugging
+For each 6:00 PM class, the engine reads the live button text and acts accordingly:
+
+| Button State | Action |
+|---|---|
+| `Book Class` | Click → poll `aria-busy` → confirm `Booked` |
+| `Join Waitlist` | Click → poll `aria-busy` → confirm `Waitlisted` |
+| `Booked` | Skip — already handled, increment counter |
+| `Waitlisted` | Skip — already handled, increment counter |
+| Unknown | Log warning, continue |
 
 ---
 
 ## 📊 Example Output
 
-Booked: Yoga Class on Tue 5 May, at 6:00 PM
-Waitlisted: HIIT Class on Thu 7 May, at 6:00 PM
+```text
+Booked:      Yoga Class   — Tue 6 May, 6:00 PM
+Waitlisted:  HIIT Class   — Thu 8 May, 6:00 PM
+
+--- Total Tuesday/Thursday 6pm classes: 4 ---
+
+--- VERIFYING ON MY BOOKINGS PAGE ---
+  ✓ Verified: Yoga Class
+  ✓ Verified: Pilates Class
+  ✓ Verified: HIIT Class
+  ✓ Verified: Spin Class
 
 --- VERIFICATION RESULT ---
-Expected: 4 bookings
-Found: 4 bookings
+Expected : 4 bookings
+Found    : 4 bookings
 ✅ SUCCESS: All bookings verified!
----
-
-## 🧠 Engineering Concepts Demonstrated
-
-This project demonstrates skills directly transferable to **Application Support / Production Support roles**:
-
-- Workflow automation & orchestration
-- Real-time UI state handling
-- Exception handling & system resilience
-- Multi-step transaction processing
-- Data extraction from dynamic systems
-- End-to-end process validation
-- Retry logic for unstable environments
+```
 
 ---
 
-## 🚀 Why This Project Matters
+## 🚀 Getting Started
 
-Unlike basic automation scripts, this project simulates:
+```bash
+# Clone the repository
+git clone https://github.com/your-username/gym-booking-automation.git
+cd gym-booking-automation
 
-- Multi-step business workflows
-- Real-world system dependency handling
-- Failure recovery mechanisms
-- Post-process validation (critical in production systems)
+# Install dependencies
+pip install selenium
 
-It reflects how production support engineers:
-> diagnose → automate → validate → ensure system consistency
+# Run the script
+python main.py
+```
 
----
-
-## 🔧 Possible Enhancements
-
-- Add logging framework (`logging`)
-- Introduce configuration management (`.env`)
-- Store bookings in a database (SQLite/PostgreSQL)
-- Add API wrapper layer
-- Convert retry logic into decorators
-- Implement scheduling (cron / GitHub Actions)
-- Add notification system (email/Slack alerts)
-
----
-
-## 📁 Project Structure
-python-gym-booking-automation-using-selenium
-|-main.py
-|-readme.md
+> ⚠️ Ensure ChromeDriver is installed and matches your installed Chrome version. A `gym_profile/` directory will be created automatically on first run to persist your session.
